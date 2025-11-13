@@ -2,76 +2,116 @@ package db
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/google/uuid"
+	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
-// contextKey is a custom type for context keys to avoid collisions
-// Using UUID to ensure uniqueness
-type contextKey struct {
-	name string
-}
+type ContextKey string
 
-var txKey = contextKey{name: uuid.New().String()}
+const (
+	EngineKey ContextKey = "db.engine"
+)
 
-// ContextManager manages database transactions
 type ContextManager struct {
-	pool *pgxpool.Pool
+	pool   *pgxpool.Pool
+	logger *zap.Logger
 }
 
-// NewContextManager creates a new context manager
-func NewContextManager(pool *pgxpool.Pool) *ContextManager {
-	return &ContextManager{pool: pool}
-}
-
-// GetQueryable returns either a transaction or the pool connection
-func (cm *ContextManager) GetQueryable(ctx context.Context) Queryable {
-	if tx, ok := ctx.Value(txKey).(pgx.Tx); ok {
-		return tx
+func NewContextManager(pool *pgxpool.Pool, logger *zap.Logger) *ContextManager {
+	return &ContextManager{
+		pool:   pool,
+		logger: logger,
 	}
-	return cm.pool
 }
 
-// Do executes a function within a transaction
-func (cm *ContextManager) Do(ctx context.Context, fn func(ctx context.Context) error) error {
-	// If already in a transaction, just execute the function
-	if _, ok := ctx.Value(txKey).(pgx.Tx); ok {
-		return fn(ctx)
+type Engine interface {
+	pgxscan.Querier
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+}
+
+type Transactioner interface {
+	Do(ctx context.Context, f func(ctx context.Context) error) error
+}
+
+type EngineFactory interface {
+	Get(ctx context.Context) Engine
+}
+
+func (cm *ContextManager) putEngineInContext(ctx context.Context, engine Engine) context.Context {
+	return context.WithValue(ctx, EngineKey, engine)
+}
+
+func (cm *ContextManager) begin(ctx context.Context) (context.Context, error) {
+	_, ok := ctx.Value(EngineKey).(pgx.Tx)
+	if ok {
+		return ctx, nil
 	}
 
-	// Start a new transaction
 	tx, err := cm.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return ctx, err
 	}
 
-	// Add transaction to context
-	ctx = context.WithValue(ctx, txKey, tx)
+	return cm.putEngineInContext(ctx, tx), nil
+}
 
-	// Execute function
-	err = fn(ctx)
+func (cm *ContextManager) commit(ctx context.Context) error {
+	tx, ok := ctx.Value(EngineKey).(pgx.Tx)
+	if !ok {
+		return nil
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (cm *ContextManager) rollback(ctx context.Context) error {
+	tx, ok := ctx.Value(EngineKey).(pgx.Tx)
+	if !ok {
+		return nil
+	}
+
+	return tx.Rollback(ctx)
+}
+
+func (cm *ContextManager) Do(ctx context.Context, f func(ctx context.Context) error) (err error) {
+	txCtx, err := cm.begin(ctx)
 	if err != nil {
-		// Rollback on error
-		if rbErr := tx.Rollback(ctx); rbErr != nil {
-			return fmt.Errorf("failed to rollback transaction: %w (original error: %v)", rbErr, err)
-		}
 		return err
 	}
 
-	// Commit transaction
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
-	}
+	detCtx := context.WithoutCancel(txCtx)
+	defer func() {
+		if p := recover(); p != nil {
+			cm.logger.Error("panic occurred in transaction", zap.Any("panic", p))
+			cm.rollback(detCtx)
+			panic(p)
+		}
+		if err != nil {
+			cm.logger.Error("error in transaction occurred", zap.Error(err))
+			innerErr := cm.rollback(txCtx)
+			if innerErr != nil {
+				cm.logger.Error("failed to rollback transaction", zap.Error(innerErr))
+			}
+		} else {
+			err = cm.commit(txCtx)
+			if err != nil {
+				cm.logger.Error("failed to commit transaction", zap.Error(err))
+			}
+		}
+	}()
 
-	return nil
+	err = f(txCtx)
+
+	return err
 }
 
-// Queryable interface for both pgxpool.Pool and pgx.Tx
-type Queryable interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgx.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+func (cm *ContextManager) Get(ctx context.Context) Engine {
+	if engine, ok := ctx.Value(EngineKey).(Engine); ok {
+		return engine
+	}
+	return cm.pool
 }

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -42,7 +43,7 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 			next.ServeHTTP(wrapped, r)
 
 			duration := time.Since(start)
-			
+
 			logger.Info("HTTP request",
 				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
@@ -59,4 +60,3 @@ func Logging(logger *zap.Logger) func(http.Handler) http.Handler {
 }
 
 // must import fmt
-import "fmt"

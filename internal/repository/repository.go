@@ -3,16 +3,17 @@ package repository
 import (
 	"context"
 
+	"pr-service/internal/db"
 	"pr-service/internal/domain"
 )
 
+// TeamRepository defines methods for team data access
 type TeamRepository interface {
 	CreateTeam(ctx context.Context, team domain.Team) error
 	GetTeam(ctx context.Context, teamName string) (domain.Team, error)
 	TeamExists(ctx context.Context, teamName string) (bool, error)
 }
 
-// UserRepository defines methods for user data access
 type UserRepository interface {
 	CreateOrUpdateUser(ctx context.Context, user domain.User) error
 	UpdateUser(ctx context.Context, user domain.User) error
@@ -29,4 +30,16 @@ type PRRepository interface {
 	AddReviewer(ctx context.Context, prID string, userID string) error
 	GetPRsByReviewer(ctx context.Context, userID string) ([]domain.PullRequest, error)
 	PRExists(ctx context.Context, prID string) (bool, error)
+}
+
+type BaseRepository struct {
+	cm db.EngineFactory
+}
+
+func NewBaseRepository(cm db.EngineFactory) BaseRepository {
+	return BaseRepository{cm: cm}
+}
+
+func (r *BaseRepository) Engine(ctx context.Context) db.Engine {
+	return r.cm.Get(ctx)
 }

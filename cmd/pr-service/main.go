@@ -78,7 +78,7 @@ func main() {
 	log.Info("Successfully connected to database")
 
 	// Initialize context manager for transactions
-	contextManager := db.NewContextManager(dbPool)
+	contextManager := db.NewContextManager(dbPool, log)
 
 	// Initialize repositories
 	teamRepo := repository.NewTeamRepository(dbPool)
