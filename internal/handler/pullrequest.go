@@ -1,6 +1,155 @@
 package handler
 
-// TODO: Implement PRHandler
-// - POST /pullRequest/create
-// - POST /pullRequest/merge
-// - POST /pullRequest/reassign
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+
+	"pr-service/internal/app/middleware"
+	"pr-service/internal/domain"
+
+	"go.uber.org/zap"
+)
+
+type prService interface {
+	CreatePR(ctx context.Context, prID, prName, authorID string) (domain.PullRequest, error)
+	MergePR(ctx context.Context, prID string) (domain.PullRequest, error)
+	ReassignReviewer(ctx context.Context, prID, oldUserID string) (domain.PullRequest, string, error)
+}
+
+// PRHandler handles pull request HTTP requests
+type PRHandler struct {
+	service prService
+	logger  *zap.Logger
+}
+
+// NewPRHandler creates a new PR handler
+func NewPRHandler(service prService, logger *zap.Logger) *PRHandler {
+	return &PRHandler{
+		service: service,
+		logger:  logger,
+	}
+}
+
+// PR DTOs matching OpenAPI schema with snake_case
+
+type CreatePRRequest struct {
+	PullRequestID   string `json:"pull_request_id"`
+	PullRequestName string `json:"pull_request_name"`
+	AuthorID        string `json:"author_id"`
+}
+
+type MergePRRequest struct {
+	PullRequestID string `json:"pull_request_id"`
+}
+
+type ReassignRequest struct {
+	PullRequestID string `json:"pull_request_id"`
+	OldUserID     string `json:"old_user_id"` // per OpenAPI schema (not old_reviewer_id)
+}
+
+type PullRequestDTO struct {
+	PullRequestID     string   `json:"pull_request_id"`
+	PullRequestName   string   `json:"pull_request_name"`
+	AuthorID          string   `json:"author_id"`
+	AssignedReviewers []string `json:"assigned_reviewers"`
+	Status            string   `json:"status"`
+	CreatedAt         *string  `json:"createdAt,omitempty"` // nullable
+	MergedAt          *string  `json:"mergedAt,omitempty"`  // nullable
+}
+
+type ReassignResponse struct {
+	PullRequest PullRequestDTO `json:"pull_request"`
+	ReplacedBy  string         `json:"replaced_by"`
+}
+
+// CreatePR handles POST /pullRequest/create
+func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
+	var req CreatePRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	pr, err := h.service.CreatePR(r.Context(), req.PullRequestID, req.PullRequestName, req.AuthorID)
+	if err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
+	// Map to DTO
+	resp := mapPRToDTO(pr)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// MergePR handles POST /pullRequest/merge
+func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
+	var req MergePRRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	pr, err := h.service.MergePR(r.Context(), req.PullRequestID)
+	if err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
+	resp := mapPRToDTO(pr)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// ReassignReviewer handles POST /pullRequest/reassign
+func (h *PRHandler) ReassignReviewer(w http.ResponseWriter, r *http.Request) {
+	var req ReassignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	pr, replacedBy, err := h.service.ReassignReviewer(r.Context(), req.PullRequestID, req.OldUserID)
+	if err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
+	resp := ReassignResponse{
+		PullRequest: mapPRToDTO(pr),
+		ReplacedBy:  replacedBy,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// Helper to map domain.PullRequest to DTO
+func mapPRToDTO(pr domain.PullRequest) PullRequestDTO {
+	dto := PullRequestDTO{
+		PullRequestID:     pr.PullRequestID,
+		PullRequestName:   pr.PullRequestName,
+		AuthorID:          pr.AuthorID,
+		AssignedReviewers: pr.AssignedReviewers,
+		Status:            string(pr.Status),
+	}
+
+	// Handle nullable timestamps
+	if !pr.CreatedAt.IsZero() {
+		createdAtStr := pr.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+		dto.CreatedAt = &createdAtStr
+	}
+
+	if !pr.MergedAt.IsZero() {
+		mergedAtStr := pr.MergedAt.Format("2006-01-02T15:04:05Z07:00")
+		dto.MergedAt = &mergedAtStr
+	}
+
+	return dto
+}

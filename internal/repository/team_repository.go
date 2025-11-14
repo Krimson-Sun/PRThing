@@ -74,7 +74,7 @@ func (r *teamRepository) TeamExists(ctx context.Context, teamName string) (bool,
 		SELECT EXISTS(SELECT 1 FROM teams WHERE team_name = $1)
 	`
 	var exists bool
-	err := r.Engine(ctx).QueryRow(ctx, query, teamName).Scan(&exists)
+	err := pgxscan.Get(ctx, r.Engine(ctx), &exists, query, teamName)
 	if err != nil {
 		return false, fmt.Errorf("failed to check team existence: %w", err)
 	}

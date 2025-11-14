@@ -81,9 +81,9 @@ func main() {
 	contextManager := db.NewContextManager(dbPool, log)
 
 	// Initialize repositories
-	teamRepo := repository.NewTeamRepository(dbPool)
-	userRepo := repository.NewUserRepository(dbPool)
-	prRepo := repository.NewPRRepository(dbPool)
+	teamRepo := repository.NewTeamRepository(contextManager)
+	userRepo := repository.NewUserRepository(contextManager)
+	prRepo := repository.NewPRRepository(contextManager)
 
 	// Initialize services
 	assignmentStrategy := assignment.NewStrategy()

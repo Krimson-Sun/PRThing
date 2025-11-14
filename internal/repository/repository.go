@@ -14,6 +14,7 @@ type TeamRepository interface {
 	TeamExists(ctx context.Context, teamName string) (bool, error)
 }
 
+// UserRepository defines methods for user data access
 type UserRepository interface {
 	CreateOrUpdateUser(ctx context.Context, user domain.User) error
 	UpdateUser(ctx context.Context, user domain.User) error
