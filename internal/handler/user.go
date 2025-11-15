@@ -39,6 +39,7 @@ type SetIsActiveRequest struct {
 
 type UserResponse struct {
 	UserID   string `json:"user_id"`
+	Username string `json:"username"`
 	TeamName string `json:"team_name"`
 	IsActive bool   `json:"is_active"`
 }
@@ -48,6 +49,15 @@ type PullRequestShort struct {
 	PullRequestName string `json:"pull_request_name"`
 	AuthorID        string `json:"author_id"`
 	Status          string `json:"status"`
+}
+
+type setIsActiveResponse struct {
+	User UserResponse `json:"user"`
+}
+
+type getReviewResponse struct {
+	UserID       string             `json:"user_id"`
+	PullRequests []PullRequestShort `json:"pull_requests"`
 }
 
 // SetIsActive handles POST /users/setIsActive
@@ -64,11 +74,7 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := UserResponse{
-		UserID:   user.UserID,
-		TeamName: user.TeamName,
-		IsActive: user.IsActive,
-	}
+	resp := setIsActiveResponse{User: mapUserToResponse(user)}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -100,7 +106,21 @@ func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	resp := getReviewResponse{
+		UserID:       userID,
+		PullRequests: result,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(resp)
+}
+
+func mapUserToResponse(user domain.User) UserResponse {
+	return UserResponse{
+		UserID:   user.UserID,
+		Username: user.Username,
+		TeamName: user.TeamName,
+		IsActive: user.IsActive,
+	}
 }

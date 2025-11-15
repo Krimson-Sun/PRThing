@@ -1,4 +1,4 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /build
 
@@ -31,20 +31,17 @@ COPY --from=builder /build/migrations ./migrations
 # Copy config
 COPY --from=builder /build/config.yaml .
 
+COPY --from=builder /build/openapi.yml .
+
 # Install goose for migrations
 RUN apk add --no-cache curl && \
     curl -fsSL https://github.com/pressly/goose/releases/download/v3.15.1/goose_linux_x86_64 -o /usr/local/bin/goose && \
     chmod +x /usr/local/bin/goose && \
     apk del curl
 
-# Create entrypoint script
-RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
-    echo 'set -e' >> /app/entrypoint.sh && \
-    echo 'echo "Running migrations..."' >> /app/entrypoint.sh && \
-    echo 'goose -dir ./migrations postgres "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=${DB_SSLMODE}" up' >> /app/entrypoint.sh && \
-    echo 'echo "Starting application..."' >> /app/entrypoint.sh && \
-    echo 'exec /app/pr-service' >> /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
+# Copy and set up entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8080
 

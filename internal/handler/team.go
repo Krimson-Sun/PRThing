@@ -34,6 +34,7 @@ func NewTeamHandler(service teamService, logger *zap.Logger) *TeamHandler {
 
 type TeamMemberDTO struct {
 	UserID   string `json:"user_id"`
+	Username string `json:"username"`
 	IsActive bool   `json:"is_active"`
 }
 
@@ -42,9 +43,8 @@ type TeamDTO struct {
 	Members  []TeamMemberDTO `json:"members"`
 }
 
-type TeamResponse struct {
-	TeamName string          `json:"team_name"`
-	Members  []TeamMemberDTO `json:"members"`
+type createTeamResponse struct {
+	Team TeamDTO `json:"team"`
 }
 
 // AddTeam handles POST /team/add
@@ -60,6 +60,7 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 	for i, m := range req.Members {
 		members[i] = domain.User{
 			UserID:   m.UserID,
+			Username: m.Username,
 			TeamName: req.TeamName,
 			IsActive: m.IsActive,
 		}
@@ -72,14 +73,10 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build response (echo back the created team)
-	resp := TeamResponse{
-		TeamName: createdTeam.TeamName,
-		Members:  req.Members,
-	}
+	resp := createTeamResponse{Team: mapTeamToDTO(createdTeam)}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(resp)
 }
 
@@ -97,21 +94,25 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Map domain to DTO
-	members := make([]TeamMemberDTO, len(team.Members))
-	for i, m := range team.Members {
-		members[i] = TeamMemberDTO{
-			UserID:   m.UserID,
-			IsActive: m.IsActive,
-		}
-	}
-
-	resp := TeamResponse{
-		TeamName: team.TeamName,
-		Members:  members,
-	}
+	resp := mapTeamToDTO(team)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(resp)
+}
+
+func mapTeamToDTO(team domain.Team) TeamDTO {
+	members := make([]TeamMemberDTO, len(team.Members))
+	for i, m := range team.Members {
+		members[i] = TeamMemberDTO{
+			UserID:   m.UserID,
+			Username: m.Username,
+			IsActive: m.IsActive,
+		}
+	}
+
+	return TeamDTO{
+		TeamName: team.TeamName,
+		Members:  members,
+	}
 }

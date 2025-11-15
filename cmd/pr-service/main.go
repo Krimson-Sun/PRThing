@@ -95,9 +95,11 @@ func main() {
 	teamHandler := handler.NewTeamHandler(teamService, log)
 	userHandler := handler.NewUserHandler(userService, log)
 	prHandler := handler.NewPRHandler(prService, log)
+	healthHandler := handler.NewHealthHandler()
+	docsHandler := handler.NewDocsHandler("openapi.yml")
 
 	// Initialize and start HTTP server
-	server := app.NewServer(cfg, log, teamHandler, userHandler, prHandler)
+	server := app.NewServer(cfg, log, teamHandler, userHandler, prHandler, healthHandler, docsHandler)
 
 	// Start server in goroutine
 	go func() {

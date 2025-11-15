@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: pr_service
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,6 +36,16 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: pr-service-swagger
+    ports:
+      - "8081:8080"
+    environment:
+      SWAGGER_JSON: /openapi.yml
+    volumes:
+      - ./openapi.yml:/openapi.yml:ro
 
 volumes:
   postgres_data:

@@ -97,6 +97,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 	teamHandler := handler.NewTeamHandler(teamService, log)
 	userHandler := handler.NewUserHandler(userService, log)
 	prHandler := handler.NewPRHandler(prService, log)
+	healthHandler := handler.NewHealthHandler()
+	docsHandler := handler.NewDocsHandler("openapi.yml")
 
 	// Setup HTTP router
 	mux := http.NewServeMux()
@@ -113,6 +115,13 @@ func NewApp(cfg *config.Config) (*App, error) {
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)
 	mux.HandleFunc("POST /pullRequest/merge", prHandler.MergePR)
 	mux.HandleFunc("POST /pullRequest/reassign", prHandler.ReassignReviewer)
+
+	// Health route
+	mux.HandleFunc("GET /health", healthHandler.Check)
+
+	// Documentation routes
+	mux.HandleFunc("GET /docs", docsHandler.ServeSwaggerUI)
+	mux.HandleFunc("GET /openapi.yml", docsHandler.ServeOpenAPI)
 
 	// Apply middleware chain: Recovery → Logging
 	// Note: Error handling is done within handlers via middleware.WriteErrorResponse
@@ -178,6 +187,8 @@ func NewServer(
 	teamHandler *handler.TeamHandler,
 	userHandler *handler.UserHandler,
 	prHandler *handler.PRHandler,
+	healthHandler *handler.HealthHandler,
+	docsHandler *handler.DocsHandler,
 ) *Server {
 	// Setup HTTP router
 	mux := http.NewServeMux()
@@ -194,6 +205,13 @@ func NewServer(
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)
 	mux.HandleFunc("POST /pullRequest/merge", prHandler.MergePR)
 	mux.HandleFunc("POST /pullRequest/reassign", prHandler.ReassignReviewer)
+
+	// Health route
+	mux.HandleFunc("GET /health", healthHandler.Check)
+
+	// Documentation routes
+	mux.HandleFunc("GET /docs", docsHandler.ServeSwaggerUI)
+	mux.HandleFunc("GET /openapi.yml", docsHandler.ServeOpenAPI)
 
 	// Apply middleware chain: Recovery → Logging
 	var handler http.Handler = mux

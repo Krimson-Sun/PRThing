@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"pr-service/internal/app/middleware"
 	"pr-service/internal/domain"
@@ -54,13 +55,17 @@ type PullRequestDTO struct {
 	AuthorID          string   `json:"author_id"`
 	AssignedReviewers []string `json:"assigned_reviewers"`
 	Status            string   `json:"status"`
-	CreatedAt         *string  `json:"createdAt,omitempty"` // nullable
-	MergedAt          *string  `json:"mergedAt,omitempty"`  // nullable
+	CreatedAt         *string  `json:"createdAt,omitempty"`
+	MergedAt          *string  `json:"mergedAt,omitempty"`
+}
+
+type prEnvelope struct {
+	PR PullRequestDTO `json:"pr"`
 }
 
 type ReassignResponse struct {
-	PullRequest PullRequestDTO `json:"pull_request"`
-	ReplacedBy  string         `json:"replaced_by"`
+	PR         PullRequestDTO `json:"pr"`
+	ReplacedBy string         `json:"replaced_by"`
 }
 
 // CreatePR handles POST /pullRequest/create
@@ -77,8 +82,7 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Map to DTO
-	resp := mapPRToDTO(pr)
+	resp := prEnvelope{PR: mapPRToDTO(pr)}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -99,7 +103,7 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := mapPRToDTO(pr)
+	resp := prEnvelope{PR: mapPRToDTO(pr)}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -121,8 +125,8 @@ func (h *PRHandler) ReassignReviewer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := ReassignResponse{
-		PullRequest: mapPRToDTO(pr),
-		ReplacedBy:  replacedBy,
+		PR:         mapPRToDTO(pr),
+		ReplacedBy: replacedBy,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -142,12 +146,12 @@ func mapPRToDTO(pr domain.PullRequest) PullRequestDTO {
 
 	// Handle nullable timestamps
 	if !pr.CreatedAt.IsZero() {
-		createdAtStr := pr.CreatedAt.Format("2006-01-02T15:04:05Z07:00")
+		createdAtStr := pr.CreatedAt.Format(time.RFC3339)
 		dto.CreatedAt = &createdAtStr
 	}
 
-	if !pr.MergedAt.IsZero() {
-		mergedAtStr := pr.MergedAt.Format("2006-01-02T15:04:05Z07:00")
+	if pr.MergedAt != nil {
+		mergedAtStr := pr.MergedAt.Format(time.RFC3339)
 		dto.MergedAt = &mergedAtStr
 	}
 

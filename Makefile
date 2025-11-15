@@ -13,16 +13,19 @@ test: ## Run tests
 	go test -v -race -coverprofile=coverage.out ./...
 
 docker-up: ## Start all services with docker-compose
-	docker-compose up --build
+	docker compose up --build -d
 
 docker-down: ## Stop all services
-	docker-compose down -v
+	docker compose down -v
 
-migrate-up: ## Run database migrations up
-	goose -dir ./migrations postgres "postgresql://postgres:postgres@localhost:5432/pr_service?sslmode=disable" up
+docker-logs: ## View logs from containers
+	docker compose logs -f
 
-migrate-down: ## Run database migrations down
-	goose -dir ./migrations postgres "postgresql://postgres:postgres@localhost:5432/pr_service?sslmode=disable" down
+migrate-up: ## Run database migrations up (local)
+	goose -dir ./migrations postgres "postgresql://postgres:postgres@localhost:5433/pr_service?sslmode=disable" up
+
+migrate-down: ## Run database migrations down (local)
+	goose -dir ./migrations postgres "postgresql://postgres:postgres@localhost:5433/pr_service?sslmode=disable" down
 
 lint: ## Run linter
 	golangci-lint run
