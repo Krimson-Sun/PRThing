@@ -3,6 +3,7 @@ package assignment
 import (
 	"context"
 	"math/rand"
+	"sync"
 	"time"
 
 	"pr-service/internal/domain"
@@ -11,6 +12,7 @@ import (
 // Strategy implements reviewer selection algorithms
 type Strategy struct {
 	rng *rand.Rand
+	mu  sync.Mutex
 }
 
 // NewStrategy creates a new assignment strategy
@@ -33,9 +35,11 @@ func (s *Strategy) SelectReviewers(
 	}
 
 	// Shuffle for randomness
+	s.mu.Lock()
 	s.rng.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
+	s.mu.Unlock()
 
 	// Select up to 2
 	maxReviewers := 2
@@ -79,6 +83,8 @@ func (s *Strategy) SelectReplacementReviewer(
 	}
 
 	// Random selection
+	s.mu.Lock()
 	idx := s.rng.Intn(len(filtered))
+	s.mu.Unlock()
 	return filtered[idx].UserID, nil
 }
