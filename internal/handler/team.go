@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"pr-service/internal/app/middleware"
 	"pr-service/internal/domain"
@@ -55,19 +56,23 @@ func (h *TeamHandler) AddTeam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateTeamRequest(req); err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
+	teamName := strings.TrimSpace(req.TeamName)
+
 	// Map DTO to domain
 	members := make([]domain.User, len(req.Members))
 	for i, m := range req.Members {
-		members[i] = domain.User{
-			UserID:   m.UserID,
-			Username: m.Username,
-			TeamName: req.TeamName,
-			IsActive: m.IsActive,
-		}
+		userID := strings.TrimSpace(m.UserID)
+		username := strings.TrimSpace(m.Username)
+		members[i] = domain.NewUser(userID, username, teamName, m.IsActive)
 	}
 
 	// Call service
-	createdTeam, err := h.service.CreateTeam(r.Context(), req.TeamName, members)
+	createdTeam, err := h.service.CreateTeam(r.Context(), teamName, members)
 	if err != nil {
 		middleware.WriteErrorResponse(w, err, h.logger)
 		return
@@ -115,4 +120,24 @@ func mapTeamToDTO(team domain.Team) TeamDTO {
 		TeamName: team.TeamName,
 		Members:  members,
 	}
+}
+
+func validateTeamRequest(req TeamDTO) error {
+	teamName := strings.TrimSpace(req.TeamName)
+	if teamName == "" {
+		return domain.ErrInvalidArgument
+	}
+
+	if len(req.Members) == 0 {
+		return domain.ErrInvalidArgument
+	}
+
+	for _, member := range req.Members {
+		if strings.TrimSpace(member.UserID) == "" ||
+			strings.TrimSpace(member.Username) == "" {
+			return domain.ErrInvalidArgument
+		}
+	}
+
+	return nil
 }

@@ -29,12 +29,13 @@ var (
 type ErrorCode string
 
 const (
-	ErrorCodeTeamExists  ErrorCode = "TEAM_EXISTS"
-	ErrorCodePRExists    ErrorCode = "PR_EXISTS"
-	ErrorCodePRMerged    ErrorCode = "PR_MERGED"
-	ErrorCodeNotAssigned ErrorCode = "NOT_ASSIGNED"
-	ErrorCodeNoCandidate ErrorCode = "NO_CANDIDATE"
-	ErrorCodeNotFound    ErrorCode = "NOT_FOUND"
+	ErrorCodeTeamExists      ErrorCode = "TEAM_EXISTS"
+	ErrorCodePRExists        ErrorCode = "PR_EXISTS"
+	ErrorCodePRMerged        ErrorCode = "PR_MERGED"
+	ErrorCodeNotAssigned     ErrorCode = "NOT_ASSIGNED"
+	ErrorCodeNoCandidate     ErrorCode = "NO_CANDIDATE"
+	ErrorCodeNotFound        ErrorCode = "NOT_FOUND"
+	ErrorCodeInvalidArgument ErrorCode = "INVALID_ARGUMENT"
 )
 
 func GetErrorCode(err error) ErrorCode {
@@ -51,6 +52,8 @@ func GetErrorCode(err error) ErrorCode {
 		return ErrorCodeNoCandidate
 	case errors.Is(err, ErrNotFound):
 		return ErrorCodeNotFound
+	case errors.Is(err, ErrInvalidArgument):
+		return ErrorCodeInvalidArgument
 	default:
 		return ""
 	}

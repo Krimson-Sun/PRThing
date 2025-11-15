@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"strings"
 
 	"pr-service/internal/domain"
 )
@@ -35,6 +36,11 @@ func (s *Service) SetIsActive(
 	userID string,
 	isActive bool,
 ) (domain.User, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return domain.User{}, domain.ErrInvalidArgument
+	}
+
 	user, err := s.userRepo.GetUser(ctx, userID)
 	if err != nil {
 		return domain.User{}, err
@@ -51,6 +57,11 @@ func (s *Service) SetIsActive(
 
 // GetUser retrieves a user by ID
 func (s *Service) GetUser(ctx context.Context, userID string) (domain.User, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return domain.User{}, domain.ErrInvalidArgument
+	}
+
 	return s.userRepo.GetUser(ctx, userID)
 }
 
@@ -59,5 +70,10 @@ func (s *Service) GetPRsByReviewer(
 	ctx context.Context,
 	userID string,
 ) ([]domain.PullRequest, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, domain.ErrInvalidArgument
+	}
+
 	return s.prRepo.GetPRsByReviewer(ctx, userID)
 }

@@ -99,6 +99,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	prHandler := handler.NewPRHandler(prService, log)
 	healthHandler := handler.NewHealthHandler()
 	docsHandler := handler.NewDocsHandler("openapi.yml")
+	statsHandler := handler.NewStatsHandler(prService, log)
 
 	// Setup HTTP router
 	mux := http.NewServeMux()
@@ -115,6 +116,9 @@ func NewApp(cfg *config.Config) (*App, error) {
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)
 	mux.HandleFunc("POST /pullRequest/merge", prHandler.MergePR)
 	mux.HandleFunc("POST /pullRequest/reassign", prHandler.ReassignReviewer)
+
+	// Stats routes
+	mux.HandleFunc("GET /stats/assignments", statsHandler.GetAssignmentStats)
 
 	// Health route
 	mux.HandleFunc("GET /health", healthHandler.Check)
@@ -189,6 +193,7 @@ func NewServer(
 	prHandler *handler.PRHandler,
 	healthHandler *handler.HealthHandler,
 	docsHandler *handler.DocsHandler,
+	statsHandler *handler.StatsHandler,
 ) *Server {
 	// Setup HTTP router
 	mux := http.NewServeMux()
@@ -205,6 +210,9 @@ func NewServer(
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)
 	mux.HandleFunc("POST /pullRequest/merge", prHandler.MergePR)
 	mux.HandleFunc("POST /pullRequest/reassign", prHandler.ReassignReviewer)
+
+	// Stats routes
+	mux.HandleFunc("GET /stats/assignments", statsHandler.GetAssignmentStats)
 
 	// Health route
 	mux.HandleFunc("GET /health", healthHandler.Check)

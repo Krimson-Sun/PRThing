@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"pr-service/internal/app/middleware"
 	"pr-service/internal/domain"
@@ -68,6 +69,12 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.UserID = strings.TrimSpace(req.UserID)
+	if err := validateUserID(req.UserID); err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
 	user, err := h.service.SetIsActive(r.Context(), req.UserID, req.IsActive)
 	if err != nil {
 		middleware.WriteErrorResponse(w, err, h.logger)
@@ -83,8 +90,8 @@ func (h *UserHandler) SetIsActive(w http.ResponseWriter, r *http.Request) {
 
 // GetReview handles GET /users/getReview?user_id=...
 func (h *UserHandler) GetReview(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
+	userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
+	if err := validateUserID(userID); err != nil {
 		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
 		return
 	}
@@ -123,4 +130,11 @@ func mapUserToResponse(user domain.User) UserResponse {
 		TeamName: user.TeamName,
 		IsActive: user.IsActive,
 	}
+}
+
+func validateUserID(userID string) error {
+	if strings.TrimSpace(userID) == "" {
+		return domain.ErrInvalidArgument
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package team
 
 import (
 	"context"
+	"strings"
 
 	"pr-service/internal/db"
 	"pr-service/internal/domain"
@@ -43,6 +44,27 @@ func (s *Service) CreateTeam(
 	teamName string,
 	members []domain.User,
 ) (domain.Team, error) {
+	teamName = strings.TrimSpace(teamName)
+	if teamName == "" || len(members) == 0 {
+		return domain.Team{}, domain.ErrInvalidArgument
+	}
+
+	for i := range members {
+		members[i].UserID = strings.TrimSpace(members[i].UserID)
+		members[i].Username = strings.TrimSpace(members[i].Username)
+		members[i].TeamName = strings.TrimSpace(members[i].TeamName)
+
+		if members[i].UserID == "" || members[i].Username == "" {
+			return domain.Team{}, domain.ErrInvalidArgument
+		}
+		if members[i].TeamName == "" {
+			members[i].TeamName = teamName
+		}
+		if members[i].TeamName != teamName {
+			return domain.Team{}, domain.ErrInvalidArgument
+		}
+	}
+
 	// Check if team already exists
 	exists, err := s.teamRepo.TeamExists(ctx, teamName)
 	if err != nil {

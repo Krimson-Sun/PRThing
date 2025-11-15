@@ -2,6 +2,7 @@ package pullrequest
 
 import (
 	"context"
+	"strings"
 
 	"pr-service/internal/db"
 	"pr-service/internal/domain"
@@ -17,6 +18,8 @@ type prRepository interface {
 	AddReviewer(ctx context.Context, prID string, userID string) error
 	GetPRsByReviewer(ctx context.Context, userID string) ([]domain.PullRequest, error)
 	PRExists(ctx context.Context, prID string) (bool, error)
+	GetAssignmentStatsByUser(ctx context.Context) (map[string]int, error)
+	GetAssignmentStatsByPR(ctx context.Context) (map[string]int, error)
 }
 
 type userRepository interface {
@@ -52,6 +55,13 @@ func (s *Service) CreatePR(
 	ctx context.Context,
 	prID, prName, authorID string,
 ) (domain.PullRequest, error) {
+	prID = strings.TrimSpace(prID)
+	prName = strings.TrimSpace(prName)
+	authorID = strings.TrimSpace(authorID)
+	if prID == "" || prName == "" || authorID == "" {
+		return domain.PullRequest{}, domain.ErrInvalidArgument
+	}
+
 	// Check if PR already exists
 	exists, err := s.prRepo.PRExists(ctx, prID)
 	if err != nil {
@@ -105,6 +115,11 @@ func (s *Service) CreatePR(
 
 // MergePR marks PR as merged (idempotent)
 func (s *Service) MergePR(ctx context.Context, prID string) (domain.PullRequest, error) {
+	prID = strings.TrimSpace(prID)
+	if prID == "" {
+		return domain.PullRequest{}, domain.ErrInvalidArgument
+	}
+
 	pr, err := s.prRepo.GetPR(ctx, prID)
 	if err != nil {
 		return domain.PullRequest{}, err
@@ -125,6 +140,12 @@ func (s *Service) ReassignReviewer(
 	ctx context.Context,
 	prID, oldUserID string,
 ) (domain.PullRequest, string, error) {
+	prID = strings.TrimSpace(prID)
+	oldUserID = strings.TrimSpace(oldUserID)
+	if prID == "" || oldUserID == "" {
+		return domain.PullRequest{}, "", domain.ErrInvalidArgument
+	}
+
 	pr, err := s.prRepo.GetPR(ctx, prID)
 	if err != nil {
 		return domain.PullRequest{}, "", err
@@ -191,5 +212,25 @@ func (s *Service) GetPRsByReviewer(
 	ctx context.Context,
 	userID string,
 ) ([]domain.PullRequest, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return nil, domain.ErrInvalidArgument
+	}
+
 	return s.prRepo.GetPRsByReviewer(ctx, userID)
+}
+
+// GetAssignmentStats returns statistics about reviewer assignments
+func (s *Service) GetAssignmentStats(ctx context.Context) (map[string]int, map[string]int, error) {
+	byUser, err := s.prRepo.GetAssignmentStatsByUser(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	byPR, err := s.prRepo.GetAssignmentStatsByPR(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return byUser, byPR, nil
 }

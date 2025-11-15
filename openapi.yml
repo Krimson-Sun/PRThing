@@ -7,6 +7,7 @@ tags:
   - name: Teams
   - name: Users
   - name: PullRequests
+  - name: Stats
   - name: Health
 
 components:
@@ -43,6 +44,7 @@ components:
                 - NOT_ASSIGNED
                 - NO_CANDIDATE
                 - NOT_FOUND
+                - INVALID_ARGUMENT
             message:
               type: string
       example:
@@ -417,5 +419,41 @@ paths:
                 pull_requests:
                   - pull_request_id: pr-1001
                     pull_request_name: Add search
+                    author_id: u1
+                    status: OPEN
+
+  /stats/assignments:
+    get:
+      tags: [Stats]
+      summary: Получить статистику назначений ревьюверов
+      description: Возвращает количество назначений по пользователям и по PR
+      responses:
+        '200':
+          description: Статистика назначений
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [by_user, by_pr]
+                properties:
+                  by_user:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Количество назначений по user_id
+                  by_pr:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Количество ревьюверов по pull_request_id
+              example:
+                by_user:
+                  u1: 5
+                  u2: 3
+                  u3: 7
+                by_pr:
+                  pr-1001: 2
+                  pr-1002: 1
+                  pr-1003: 2
                     author_id: u1
                     status: OPEN

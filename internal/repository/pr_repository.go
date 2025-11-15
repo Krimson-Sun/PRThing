@@ -162,3 +162,65 @@ func (r *prRepository) PRExists(ctx context.Context, prID string) (bool, error) 
 	}
 	return exists, nil
 }
+
+// GetAssignmentStatsByUser returns assignment count per user
+func (r *prRepository) GetAssignmentStatsByUser(ctx context.Context) (map[string]int, error) {
+	query := `
+		SELECT user_id, COUNT(*) as assignment_count
+		FROM pr_reviewers
+		GROUP BY user_id
+		ORDER BY assignment_count DESC
+	`
+	rows, err := r.Engine(ctx).Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment stats by user: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int)
+	for rows.Next() {
+		var userID string
+		var count int
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		stats[userID] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return stats, nil
+}
+
+// GetAssignmentStatsByPR returns assignment count per PR
+func (r *prRepository) GetAssignmentStatsByPR(ctx context.Context) (map[string]int, error) {
+	query := `
+		SELECT pull_request_id, COUNT(*) as reviewer_count
+		FROM pr_reviewers
+		GROUP BY pull_request_id
+		ORDER BY reviewer_count DESC
+	`
+	rows, err := r.Engine(ctx).Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment stats by PR: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int)
+	for rows.Next() {
+		var prID string
+		var count int
+		if err := rows.Scan(&prID, &count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		stats[prID] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return stats, nil
+}

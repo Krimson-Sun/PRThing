@@ -31,6 +31,8 @@ type PRRepository interface {
 	AddReviewer(ctx context.Context, prID string, userID string) error
 	GetPRsByReviewer(ctx context.Context, userID string) ([]domain.PullRequest, error)
 	PRExists(ctx context.Context, prID string) (bool, error)
+	GetAssignmentStatsByUser(ctx context.Context) (map[string]int, error)
+	GetAssignmentStatsByPR(ctx context.Context) (map[string]int, error)
 }
 
 type BaseRepository struct {

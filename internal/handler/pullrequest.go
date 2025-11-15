@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"pr-service/internal/app/middleware"
@@ -76,6 +77,12 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	normalizeCreatePRRequest(&req)
+	if err := validateCreatePRRequest(req); err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
 	pr, err := h.service.CreatePR(r.Context(), req.PullRequestID, req.PullRequestName, req.AuthorID)
 	if err != nil {
 		middleware.WriteErrorResponse(w, err, h.logger)
@@ -97,6 +104,12 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	req.PullRequestID = strings.TrimSpace(req.PullRequestID)
+	if err := validateMergeRequest(req); err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
 	pr, err := h.service.MergePR(r.Context(), req.PullRequestID)
 	if err != nil {
 		middleware.WriteErrorResponse(w, err, h.logger)
@@ -115,6 +128,12 @@ func (h *PRHandler) ReassignReviewer(w http.ResponseWriter, r *http.Request) {
 	var req ReassignRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	normalizeReassignRequest(&req)
+	if err := validateReassignRequest(req); err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
 		return
 	}
 
@@ -156,4 +175,38 @@ func mapPRToDTO(pr domain.PullRequest) PullRequestDTO {
 	}
 
 	return dto
+}
+
+func normalizeCreatePRRequest(req *CreatePRRequest) {
+	req.PullRequestID = strings.TrimSpace(req.PullRequestID)
+	req.PullRequestName = strings.TrimSpace(req.PullRequestName)
+	req.AuthorID = strings.TrimSpace(req.AuthorID)
+}
+
+func validateCreatePRRequest(req CreatePRRequest) error {
+	if req.PullRequestID == "" ||
+		req.PullRequestName == "" ||
+		req.AuthorID == "" {
+		return domain.ErrInvalidArgument
+	}
+	return nil
+}
+
+func validateMergeRequest(req MergePRRequest) error {
+	if req.PullRequestID == "" {
+		return domain.ErrInvalidArgument
+	}
+	return nil
+}
+
+func normalizeReassignRequest(req *ReassignRequest) {
+	req.PullRequestID = strings.TrimSpace(req.PullRequestID)
+	req.OldUserID = strings.TrimSpace(req.OldUserID)
+}
+
+func validateReassignRequest(req ReassignRequest) error {
+	if req.PullRequestID == "" || req.OldUserID == "" {
+		return domain.ErrInvalidArgument
+	}
+	return nil
 }
