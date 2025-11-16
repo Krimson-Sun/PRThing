@@ -88,3 +88,21 @@ func (r *userRepository) GetTeamMembers(ctx context.Context, teamName string) ([
 	}
 	return users, nil
 }
+
+// DeactivateUsers marks provided team members as inactive.
+func (r *userRepository) DeactivateUsers(ctx context.Context, teamName string, userIDs []string) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	query := `
+		UPDATE users
+		SET is_active = false, updated_at = NOW()
+		WHERE team_name = $1 AND user_id = ANY($2)
+	`
+	_, err := r.Engine(ctx).Exec(ctx, query, teamName, userIDs)
+	if err != nil {
+		return fmt.Errorf("failed to deactivate users: %w", err)
+	}
+	return nil
+}

@@ -90,7 +90,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 	// Initialize services
 	teamService := team.NewService(teamRepo, userRepo, ctxManager)
-	userService := user.NewService(userRepo, prRepo)
+	userService := user.NewService(userRepo, prRepo, ctxManager, assignStrategy)
 	prService := pullrequest.NewService(prRepo, userRepo, ctxManager, assignStrategy)
 
 	// Initialize handlers
@@ -111,6 +111,7 @@ func NewApp(cfg *config.Config) (*App, error) {
 	// User routes
 	mux.HandleFunc("POST /users/setIsActive", userHandler.SetIsActive)
 	mux.HandleFunc("GET /users/getReview", userHandler.GetReview)
+	mux.HandleFunc("POST /users/deactivateTeamMembers", userHandler.BulkDeactivateTeamMembers)
 
 	// PR routes
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)
@@ -205,6 +206,7 @@ func NewServer(
 	// User routes
 	mux.HandleFunc("POST /users/setIsActive", userHandler.SetIsActive)
 	mux.HandleFunc("GET /users/getReview", userHandler.GetReview)
+	mux.HandleFunc("POST /users/deactivateTeamMembers", userHandler.BulkDeactivateTeamMembers)
 
 	// PR routes
 	mux.HandleFunc("POST /pullRequest/create", prHandler.CreatePR)

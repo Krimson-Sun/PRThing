@@ -17,8 +17,13 @@ type Strategy struct {
 
 // NewStrategy creates a new assignment strategy
 func NewStrategy() *Strategy {
+	return NewStrategyWithSource(rand.NewSource(time.Now().UnixNano()))
+}
+
+// NewStrategyWithSource allows building strategy with custom random source (useful in tests).
+func NewStrategyWithSource(src rand.Source) *Strategy {
 	return &Strategy{
-		rng: rand.New(rand.NewSource(time.Now().UnixNano())),
+		rng: rand.New(src),
 	}
 }
 

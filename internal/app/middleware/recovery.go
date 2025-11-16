@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"runtime/debug"
 
@@ -24,23 +23,13 @@ func Recovery(logger *zap.Logger) func(http.Handler) http.Handler {
 					// Return 500 Internal Server Error
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(`{"error":{"code":"INTERNAL_ERROR","message":"internal server error"}}`))
+					if _, writeErr := w.Write([]byte(`{"error":{"code":"INTERNAL_ERROR","message":"internal server error"}}`)); writeErr != nil {
+						logger.Error("failed to write recovery response", zap.Error(writeErr))
+					}
 				}
 			}()
 
 			next.ServeHTTP(w, r)
 		})
-	}
-}
-
-// handlePanic logs panic information
-func handlePanic(logger *zap.Logger, r *http.Request) {
-	if err := recover(); err != nil {
-		logger.Error("Panic recovered in handler",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-			zap.String("error", fmt.Sprintf("%v", err)),
-			zap.String("stack", string(debug.Stack())),
-		)
 	}
 }

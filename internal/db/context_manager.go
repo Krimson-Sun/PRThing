@@ -87,7 +87,9 @@ func (cm *ContextManager) Do(ctx context.Context, f func(ctx context.Context) er
 	defer func() {
 		if p := recover(); p != nil {
 			cm.logger.Error("panic occurred in transaction", zap.Any("panic", p))
-			cm.rollback(detCtx)
+			if rbErr := cm.rollback(detCtx); rbErr != nil {
+				cm.logger.Error("failed to rollback transaction after panic", zap.Error(rbErr))
+			}
 			panic(p)
 		}
 		if err != nil {

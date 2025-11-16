@@ -20,6 +20,7 @@ type UserRepository interface {
 	UpdateUser(ctx context.Context, user domain.User) error
 	GetUser(ctx context.Context, userID string) (domain.User, error)
 	GetTeamMembers(ctx context.Context, teamName string) ([]domain.User, error)
+	DeactivateUsers(ctx context.Context, teamName string, userIDs []string) error
 }
 
 type PRRepository interface {
@@ -33,6 +34,7 @@ type PRRepository interface {
 	PRExists(ctx context.Context, prID string) (bool, error)
 	GetAssignmentStatsByUser(ctx context.Context) (map[string]int, error)
 	GetAssignmentStatsByPR(ctx context.Context) (map[string]int, error)
+	GetOpenPRIDsByReviewer(ctx context.Context, userID string) ([]string, error)
 }
 
 type BaseRepository struct {

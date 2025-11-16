@@ -1,0 +1,18 @@
+version: 2
+
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+      text: "ignore test helpers"

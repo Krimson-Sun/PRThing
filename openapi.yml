@@ -122,6 +122,16 @@ components:
         status:
           type: string
           enum: [OPEN, MERGED]
+    Reassignment:
+      type: object
+      required: [ pull_request_id, old_user_id, new_user_id ]
+      properties:
+        pull_request_id:
+          type: string
+        old_user_id:
+          type: string
+        new_user_id:
+          type: string
 
 paths:
   /team/add:
@@ -238,6 +248,77 @@ paths:
                   is_active: false
         '404':
           description: Пользователь не найден
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /users/deactivateTeamMembers:
+    post:
+      tags: [Users]
+      summary: Массово деактивировать участников команды и безопасно переназначить PR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ team_name, user_ids ]
+              properties:
+                team_name: { type: string }
+                user_ids:
+                  type: array
+                  items: { type: string }
+                  minItems: 1
+            example:
+              team_name: backend
+              user_ids: [u2, u3]
+      responses:
+        '200':
+          description: Пользователи деактивированы, открытые PR обновлены
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ team_name, deactivated_user_ids, reassignments, team_members ]
+                properties:
+                  team_name: { type: string }
+                  deactivated_user_ids:
+                    type: array
+                    items: { type: string }
+                  reassignments:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Reassignment'
+                  team_members:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TeamMember'
+              example:
+                team_name: backend
+                deactivated_user_ids: [u2, u3]
+                reassignments:
+                  - pull_request_id: pr-1001
+                    old_user_id: u2
+                    new_user_id: u5
+                team_members:
+                  - user_id: u1
+                    username: Alice
+                    is_active: true
+                  - user_id: u2
+                    username: Bob
+                    is_active: false
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Команда или пользователь не найдены
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Не удалось подобрать замену
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }

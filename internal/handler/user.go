@@ -15,6 +15,7 @@ import (
 type userService interface {
 	SetIsActive(ctx context.Context, userID string, isActive bool) (domain.User, error)
 	GetPRsByReviewer(ctx context.Context, userID string) ([]domain.PullRequest, error)
+	BulkDeactivateTeamMembers(ctx context.Context, teamName string, userIDs []string) (domain.Team, []string, []domain.Reassignment, error)
 }
 
 // UserHandler handles user-related HTTP requests
@@ -59,6 +60,30 @@ type setIsActiveResponse struct {
 type getReviewResponse struct {
 	UserID       string             `json:"user_id"`
 	PullRequests []PullRequestShort `json:"pull_requests"`
+}
+
+type BulkDeactivateRequest struct {
+	TeamName string   `json:"team_name"`
+	UserIDs  []string `json:"user_ids"`
+}
+
+type bulkDeactivateResponse struct {
+	TeamName           string              `json:"team_name"`
+	DeactivatedUserIDs []string            `json:"deactivated_user_ids"`
+	Reassignments      []reassignmentDTO   `json:"reassignments"`
+	TeamMembers        []bulkTeamMemberDTO `json:"team_members"`
+}
+
+type bulkTeamMemberDTO struct {
+	UserID   string `json:"user_id"`
+	Username string `json:"username"`
+	IsActive bool   `json:"is_active"`
+}
+
+type reassignmentDTO struct {
+	PullRequestID string `json:"pull_request_id"`
+	OldUserID     string `json:"old_user_id"`
+	NewUserID     string `json:"new_user_id"`
 }
 
 // SetIsActive handles POST /users/setIsActive
@@ -137,4 +162,52 @@ func validateUserID(userID string) error {
 		return domain.ErrInvalidArgument
 	}
 	return nil
+}
+
+// BulkDeactivateTeamMembers handles POST /users/deactivateTeamMembers
+func (h *UserHandler) BulkDeactivateTeamMembers(w http.ResponseWriter, r *http.Request) {
+	var req BulkDeactivateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	req.TeamName = strings.TrimSpace(req.TeamName)
+	if req.TeamName == "" || len(req.UserIDs) == 0 {
+		middleware.WriteErrorResponse(w, domain.ErrInvalidArgument, h.logger)
+		return
+	}
+
+	team, deactivated, reassignments, err := h.service.BulkDeactivateTeamMembers(r.Context(), req.TeamName, req.UserIDs)
+	if err != nil {
+		middleware.WriteErrorResponse(w, err, h.logger)
+		return
+	}
+
+	resp := bulkDeactivateResponse{
+		TeamName:           team.TeamName,
+		DeactivatedUserIDs: deactivated,
+		Reassignments:      make([]reassignmentDTO, len(reassignments)),
+		TeamMembers:        make([]bulkTeamMemberDTO, len(team.Members)),
+	}
+
+	for i, member := range team.Members {
+		resp.TeamMembers[i] = bulkTeamMemberDTO{
+			UserID:   member.UserID,
+			Username: member.Username,
+			IsActive: member.IsActive,
+		}
+	}
+
+	for i, reassignment := range reassignments {
+		resp.Reassignments[i] = reassignmentDTO{
+			PullRequestID: reassignment.PullRequestID,
+			OldUserID:     reassignment.OldUserID,
+			NewUserID:     reassignment.NewUserID,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
 }

@@ -224,3 +224,20 @@ func (r *prRepository) GetAssignmentStatsByPR(ctx context.Context) (map[string]i
 
 	return stats, nil
 }
+
+// GetOpenPRIDsByReviewer returns IDs of open PRs assigned to reviewer.
+func (r *prRepository) GetOpenPRIDsByReviewer(ctx context.Context, userID string) ([]string, error) {
+	query := `
+		SELECT pr.pull_request_id
+		FROM pull_requests pr
+		INNER JOIN pr_reviewers rev ON pr.pull_request_id = rev.pull_request_id
+		WHERE rev.user_id = $1 AND pr.status = 'OPEN'
+		ORDER BY pr.created_at ASC
+	`
+	var prIDs []string
+	err := pgxscan.Select(ctx, r.Engine(ctx), &prIDs, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get open PRs by reviewer: %w", err)
+	}
+	return prIDs, nil
+}

@@ -26,7 +26,9 @@ import (
 func main() {
 	// Initialize logger
 	log := logger.NewLogger("pr-service", "info", "json", false)
-	defer log.Sync()
+	defer func() {
+		_ = log.Sync()
+	}()
 
 	// Load configuration
 	cfg, err := config.LoadConfig("config.yaml")
@@ -88,7 +90,7 @@ func main() {
 	// Initialize services
 	assignmentStrategy := assignment.NewStrategy()
 	teamService := team.NewService(teamRepo, userRepo, contextManager)
-	userService := user.NewService(userRepo, prRepo)
+	userService := user.NewService(userRepo, prRepo, contextManager, assignmentStrategy)
 	prService := pullrequest.NewService(prRepo, userRepo, contextManager, assignmentStrategy)
 
 	// Initialize handlers

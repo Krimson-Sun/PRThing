@@ -61,7 +61,9 @@ func WriteErrorResponse(w http.ResponseWriter, err error, logger *zap.Logger) {
 		response.Error.Message = "internal server error"
 	}
 
-	json.NewEncoder(w).Encode(response)
+	if encodeErr := json.NewEncoder(w).Encode(response); encodeErr != nil {
+		logger.Error("failed to encode error response", zap.Error(encodeErr))
+	}
 }
 
 // MapDomainError maps domain errors to HTTP status codes and error codes

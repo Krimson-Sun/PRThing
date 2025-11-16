@@ -93,7 +93,9 @@ func (h *PRHandler) CreatePR(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode create PR response", zap.Error(err))
+	}
 }
 
 // MergePR handles POST /pullRequest/merge
@@ -120,7 +122,9 @@ func (h *PRHandler) MergePR(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode merge PR response", zap.Error(err))
+	}
 }
 
 // ReassignReviewer handles POST /pullRequest/reassign
@@ -150,7 +154,9 @@ func (h *PRHandler) ReassignReviewer(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode reassign PR response", zap.Error(err))
+	}
 }
 
 // Helper to map domain.PullRequest to DTO

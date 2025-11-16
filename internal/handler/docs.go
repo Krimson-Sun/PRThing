@@ -25,7 +25,7 @@ func (h *DocsHandler) ServeOpenAPI(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/x-yaml")
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // ServeSwaggerUI serves embedded Swagger UI HTML
@@ -59,5 +59,5 @@ func (h *DocsHandler) ServeSwaggerUI(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(html))
+	_, _ = w.Write([]byte(html))
 }
