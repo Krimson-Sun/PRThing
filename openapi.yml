@@ -536,5 +536,25 @@ paths:
                   pr-1001: 2
                   pr-1002: 1
                   pr-1003: 2
-                    author_id: u1
-                    status: OPEN
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service readiness and uptime information
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, uptime_seconds]
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+                  uptime_seconds:
+                    type: integer
